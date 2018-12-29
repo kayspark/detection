@@ -5,17 +5,17 @@ using namespace chrono;
 using namespace cv;
 
 MotionCapture::MotionCapture(cv::VideoCapture &cap)
-    : pBgs(cv::createBackgroundSubtractorMOG2(10, 25, false)),
-      timeRange(3000),
-      criteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 20, 0.1),
-      winSize(cv::Size(40, 40)),
-      fps(0) {
-  capture = &cap;
+    : _pBgs(cv::createBackgroundSubtractorMOG2(10, 25, false)),
+      _timeRange(3000),
+      _criteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS, 20, 0.1),
+      _winSize(cv::Size(40, 40)),
+      _fps(0) {
+  _capture = &cap;
 }
 
 MotionCapture::~MotionCapture() {
-  capture = nullptr;
-  pBgs.release();
+  _capture = nullptr;
+  _pBgs.release();
 }
 
 void MotionCapture::uniteContours(vector<vector<cv::Point>> &cnts) {
@@ -51,48 +51,49 @@ void MotionCapture::getFeaturePoints(const std::vector<cv::Point> &in, std::vect
 }
 
 void MotionCapture::find() {
-  if (capture == nullptr)
+  if (_capture == nullptr)
     return;
   Mat frame;
   Mat mask;
   Mat fgimg;
-  currentTime = duration_cast<milliseconds>(
+  _currentTime = duration_cast<milliseconds>(
       high_resolution_clock::now().time_since_epoch());
-  capture->read(frame);
+  _capture->read(frame);
   if (frame.empty())
     return;
 
   resize(frame, frame, cv::Size(800, 600));
-  pBgs->apply(frame, mask, -1);
+//    cvtColor(frame, frame, cv::COLOR_BGR2GRAY);
+  _pBgs->apply(frame, mask, -1);
 
-  mask.copyTo(savemask);
-  Frame frametoMap(frame, savemask);
+  mask.copyTo(_saved_mask);
+  Frame frametoMap(frame, _saved_mask);
 
-  _frames.emplace(currentTime, frametoMap);
+  _frames.emplace(_currentTime, frametoMap);
   fgimg = Scalar::all(0);
   // copy to fore ground image with mask;
   frame.copyTo(fgimg, mask);
   vector<vector<Point>> allContours;
-  findContours(mask, allContours, hierarchy, RETR_EXTERNAL,
+  findContours(mask, allContours, _hierarchy, RETR_EXTERNAL,
                CHAIN_APPROX_NONE);
   if (!allContours.empty() && allContours.size() < 1000) {
     frame.copyTo(frame);
-    cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    cvtColor(frame, _gray, cv::COLOR_BGR2GRAY);
 
     uniteContours(allContours);
 
-    if (prevGray.empty()) {
-      gray.copyTo(prevGray);
+    if (_prevGray.empty()) {
+      _gray.copyTo(_prevGray);
     }
-    if (allTracks.empty()) {
-      fill_tracks(allTracks, allContours);
+    if (_allTracks.empty()) {
+      fill_tracks(_allTracks, allContours);
     } else {
       vector<uchar> status;
       vector<float> err;
       multimap<int, int> pointsNum;
       vector<Point2f> pointsPrev, pointsNow;
       long trackNumber = 0;
-      for (const auto &track : allTracks) {
+      for (const auto &track : _allTracks) {
         if (!track.empty()) {
           vector<Point2f> tmpVec;
           getFeaturePoints(track.rbegin()->second, tmpVec);
@@ -104,18 +105,19 @@ void MotionCapture::find() {
           trackNumber++;
         }
       }
-      calcOpticalFlowPyrLK(prevGray, gray, pointsPrev, pointsNow, status, err,
-                           winSize, 3, criteria, 0, 0.001);
+
+      calcOpticalFlowPyrLK(_prevGray, _gray, pointsPrev, pointsNow, status, err,
+                           _winSize, 3, _criteria, 0, 0.001);
       trackNumber = 0;
-      for (auto &track : allTracks) {
+      for (auto &track : _allTracks) {
         if (!track.empty()) {
-          auto pointsNumIt = pointsNum.equal_range(static_cast<const int>(trackNumber));
           vector<Point2f> tmpVecPoints;
-          for (auto it = pointsNumIt.first; it != pointsNumIt.second; it++) {
-            tmpVecPoints.emplace_back(pointsNow[it->second]);
-          }
+          const auto&[start, end] = pointsNum.equal_range(static_cast<const int>(trackNumber));
+          for_each(start, end, [&tmpVecPoints, &pointsNow](const auto &it) {
+            tmpVecPoints.emplace_back(pointsNow[it.second]);
+          });
           Rect tmpRect = boundingRect(tmpVecPoints);
-          milliseconds cur_time = currentTime;
+          milliseconds cur_time = _currentTime;
           allContours.erase(std::remove_if(allContours.begin(),
                                            allContours.end(),
                                            [&tmpRect, &cur_time, &track](const auto &contour) {
@@ -130,18 +132,18 @@ void MotionCapture::find() {
         }
         trackNumber++;
       }
-      fill_tracks(allTracks, allContours);
+      fill_tracks(_allTracks, allContours);
     }
   }
   milliseconds endtime = duration_cast<milliseconds>(
       high_resolution_clock::now().time_since_epoch());
-  fps = static_cast<int>(1000.0 / (endtime - currentTime).count());
-  swap(prevGray, gray);
+  _fps = static_cast<int>(1000.0 / (endtime - _currentTime).count());
+  swap(_prevGray, _gray);
   //   display();
 }
 void MotionCapture::fill_tracks(vector<map<milliseconds, vector<Point>>> &allTracks,
                                 vector<vector<Point>> &allContours) const {
-  milliseconds cur_time = currentTime;
+  milliseconds cur_time = _currentTime;
   for_each(allContours.begin(), allContours.end(), [&allTracks, &cur_time](const vector<Point> &cnt) {
     map<milliseconds, vector<Point>> oneTrack;
     oneTrack.emplace(cur_time, cnt);
@@ -155,7 +157,7 @@ void MotionCapture::display() {
   Mat outFrame;
   outFrame = frameIt->second.getImg();
   int cnt = 0;
-  for (const auto &track : allTracks) {
+  for (const auto &track : _allTracks) {
     if (track.size() > 1) {
       auto mapIt = track.find(time);
       if (mapIt == track.end())
@@ -170,7 +172,7 @@ void MotionCapture::display() {
     }
   }
   stringstream sst;
-  sst << fps;
+  sst << _fps;
   string fpsString = "FPS = " + sst.str();
   putText(outFrame, fpsString, Point(20, outFrame.rows - 20),
           FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(255, 0, 255), 1, 8);
