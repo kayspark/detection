@@ -50,6 +50,7 @@ build/
 .vscode/
 .idea/
 cmake-build-debug/
+msbuild
 cmake-build-release/
 [Bb]in/
 [Oo]bj/

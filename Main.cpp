@@ -1,16 +1,17 @@
 ﻿#include "MotionCapture.h"
-
+#include <filesystem>
 using namespace std;
 using namespace cv;
 using namespace chrono;
-namespace fs = std::__fs::filesystem;
+//namespace fs = std::__fs::filesystem;
+namespace fs = std::filesystem;
 
 int main() {
-
   //const int cameraNumber = 0;
 //const string fileName = R"(/Users/kspark/Documents/GitHub/detection/TB.mp4)";
-  const string_view fileName("/Users/kspark/Downloads/hanjun/hanjun3.avi");
-  fs::path p(fileName);
+  //const string_view fileName("/Users/kspark/Downloads/hanjun/hanjun3.avi");
+  const string_view fileName("Y://Downloads//hanjun//hanjun3.avi");
+  fs::path p = fileName;
   if (p.empty()) {
     cout << "Error: File " << fileName << " is not found." << endl;
     return -1;

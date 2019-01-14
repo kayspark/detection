@@ -45,8 +45,12 @@ void MotionCapture::uniteContours(vector<vector<cv::Point>> &cnts) {
 void MotionCapture::getFeaturePoints(const std::vector<cv::Point> &in, std::vector<cv::Point2f> &out) {
   const int qty = 10;
   long step = (long) in.size() / qty;
-  for (auto i = in.begin(); i < in.end(); i += step) {
+  for (auto i = in.begin(); i < in.end();) {
     out.emplace_back(i->x, i->y);
+    if (i  < (in.end() - step))
+      i += step;
+    else break;
+         
   }
 }
 
