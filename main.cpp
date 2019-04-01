@@ -13,7 +13,7 @@ int main() {
 #ifdef _WIN32
   const string_view fileName("Y://Downloads//hanjun//hanjun3.avi");
 #else
-  const string_view fileName("/Users/kspark/Documents/GitHub/detection/TB.mp4");
+  const string_view fileName("/home/parallels/github/detection/TB.mp4");
   // const string_view fileName("~/Downloads/hanjun/hanjun3.avi");
 #endif //_WIN32
   fs::path p = fileName;
