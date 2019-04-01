@@ -1,4 +1,4 @@
-﻿#include "/usr/local/Cellar/opencv/4.0.1/include/opencv4/opencv2/highgui.hpp"
+﻿#include <opencv2/highgui.hpp>
 #include "MotionCapture.hpp"
 #include <filesystem>
 #include <string_view>
